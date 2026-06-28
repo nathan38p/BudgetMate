@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#dbeafe" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="application-name" content="BudgetMate" />
+  <meta name="apple-mobile-web-app-title" content="BudgetMate" />
+  <title>BudgetMate</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    :root {
+      --bg: #000000;
+      --card: #2c2c2c;
+      --text: #ffffff;
+      --muted: #cbd5e1;
+      --accent: #2563eb;
+      --accent-dark: #1d4ed8;
+      --danger: #dc2626;
+      --success: #15803d;
+      --border: #000000;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      background: var(--bg);
+      min-height: 100%;
+      max-width: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      min-height: 100vh;
+      touch-action: manipulation;
+    }
+
+    .account-settings-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.account-settings-item {
+  border: 1px solid var(--border);
+  background: #282828;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+    .container {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 32px 16px 60px;
+      width: 100%;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 14px 40px rgba(15, 23, 42, 0.06);
+      margin-bottom: 18px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 16px;
+      font-size: 1.1rem;
+    }
+
+    input,
+    select,
+    button {
+      font: inherit;
+    }
+
+    input,
+    select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      background: #2e2e2e;
+      color: var(--text);
+      margin-top: 10px;
+    }
+
+    button {
+      border: none;
+      border-radius: 999px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.15s ease;
+      background: var(--accent);
+      color: white;
+      font-weight: 700;
+      margin-top: 10px;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      background: var(--accent-dark);
+    }
+
+    .secondary {
+      background: #e2e8f0;
+      color: var(--text);
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    .header {
+      align-items: center;
+      display: flex;
+      gap: 16px;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      position: relative;
+    }
+
+    .logout {
+      background: transparent;
+      border-radius: 8px;
+      color: var(--danger);
+      padding: 10px 12px;
+      text-align: left;
+      margin-top: 0;
+      white-space: nowrap;
+    }
+
+    .settings {
+      background: #2e2e2e;
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: auto;
+      padding: 10px 12px;
+      margin-top: 0;
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      align-items: center;
+      display: flex;
+      gap: 10px;
+      margin-left: auto;
+    }
+
+    .settings-panel {
+      display: none;
+      margin-top: 15px;
+    }
+
+    .settings-panel.open {
+      display: block;
+    }
+
+    .edit-panel {
+      display: none;
+      margin-top: 12px;
+      padding: 12px;
+      border-radius: 14px;
+      background: #20202a;
+    }
+
+    .edit-panel.open {
+      display: block;
+    }
+
+    .edit-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .edit-actions button {
+      flex: 1;
+    }
+
+    .expense,
+    .bank-account {
+      align-items: center;
+      border: 1px solid var(--border);
+      background: #282828;
+      border-radius: 10px;
+      display: flex;
+      gap: 12px;
+      justify-content: space-between;
+      margin-top: 8px;
+      padding: 8px 10px;
+    }
+
+    .amount,
+    .balance {
+      font-weight: bold;
+      white-space: nowrap;
+    }
+
+    .delete {
+      background: #fee2e2;
+      color: var(--danger);
+      width: auto;
+      padding: 8px 10px;
+      margin: 0 0 0 10px;
+    }
+
+    .delete:hover {
+      background: #fecaca;
+    }
+
+    .edit {
+      background: #e2e8f0;
+      color: var(--text);
+      width: auto;
+      padding: 8px 10px;
+      margin: 0 0 0 10px;
+    }
+
+    .total {
+      font-size: 24px;
+      font-weight: bold;
+      margin-top: 8px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+
+    .summary-line {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #282828;
+      border: 1px solid var(--border);
+      padding: 12px;
+      border-radius: 10px;
+    }
+
+    .summary-line.important {
+      background: #2e2e2e;
+    }
+
+    .pill {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0369a1;
+      font-size: 0.8rem;
+      font-weight: 700;
+      margin-top: 4px;
+    }
+
+    .account-type-select {
+      width: 100%;
+      margin-top: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+    }
+
+    .account-meta {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .message {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 0.95rem;
+      line-height: 1.4;
+      overflow-wrap: anywhere;
+    }
+
+    .message.error {
+      color: var(--danger);
+    }
+
+    .message.success {
+      color: var(--success);
+    }
+
+    .message:empty {
+      display: none;
+    }
+
+    /* Responsive styles */
+    @media (max-width: 640px) {
+      .container {
+        padding: 20px 12px 40px;
+      }
+
+      .card {
+        padding: 18px;
+      }
+
+      .expense,
+      .bank-account {
+        align-items: flex-start;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main class="container">
+    <div class="header">
+      <h1>BudgetMate</h1>
+      <div class="header-actions hidden" id="headerActions">
+        <button class="settings" type="button" onclick="toggleSettings()">Réglages</button>
+        <button class="logout" type="button" onclick="logout()">Déconnexion</button>
+      </div>
+    </div>
+
+    <div class="card" id="authCard">
+      <h2>Connexion</h2>
+      <input id="email" type="email" placeholder="Email" />
+      <input id="password" type="password" placeholder="Mot de passe" />
+      <button type="button" onclick="login()">Se connecter</button>
+      <button type="button" class="secondary" onclick="signup()">Créer un compte</button>
+      <div class="message hidden" id="authMessage"></div>
+    </div>
+
+    <main id="app" class="hidden">
+      <!-- Salaire form moved to settings panel -->
+      <div class="card">
+        <h2>Comptes bancaires</h2>
+        <div id="settingsPanel" class="settings-panel">
+          <h3>💼 Salaire</h3>
+          <input id="salaryAmount" type="number" step="0.01" placeholder="Salaire mensuel net en €" />
+          <input id="salaryDay" type="number" min="1" max="31" placeholder="Jour de versement ex: 28" />
+          <button type="button" onclick="saveSalary()">Enregistrer le salaire</button>
+          <div class="message hidden" id="salaryMessage"></div>
+
+          <h3>🏦 Banque</h3>
+          <button type="button" onclick="connectBank()">Connecter une banque</button>
+          <button type="button" class="secondary" onclick="loadBankAccounts()">Actualiser les soldes</button>
+          <div id="bankAccountSettings"></div>
+        </div>
+        <div id="bankAccounts"></div>
+      </div>
+
+      <div class="card">
+        <h2>Ajouter une facture</h2>
+        <input id="name" placeholder="Nom de la facture ex: Loyer" />
+        <input id="amount" type="number" step="0.01" placeholder="Montant en €" />
+        <input id="dueDay" type="number" min="1" max="31" placeholder="Jour de prélèvement (mensuel)" />
+        <input id="dueDate" type="date" style="display:none" />
+
+        <select id="expenseScope">
+          <option value="shared">À partager avec le mate</option>
+          <option value="solo">Solo</option>
+        </select>
+
+        <select id="expenseFrequency" onchange="updateFrequencyFields()">
+          <option value="monthly">Mensuel</option>
+          <option value="annual">Annuel</option>
+        </select>
+
+        <select id="category">
+          <option value="Logement">Logement</option>
+          <option value="Énergie">Énergie</option>
+          <option value="Eau">Eau</option>
+          <option value="Internet / téléphone">Internet / téléphone</option>
+          <option value="Assurance">Assurance</option>
+          <option value="Abonnement">Abonnement</option>
+          <option value="Autre">Autre</option>
+        </select>
+
+        <button type="button" onclick="addExpense()">Ajouter</button>
+      </div>
+
+      <div class="card">
+        <h2>Total mensuel</h2>
+        <div class="summary-grid">
+          <div class="summary-line important">
+            <span>💼 Salaire mensuel</span>
+            <strong id="salaryTotal">0,00 €</strong>
+          </div>
+          <div class="summary-line important">
+            <span>📅 Date de salaire</span>
+            <strong id="salaryDateLabel">Non renseignée</strong>
+          </div>
+          <div class="summary-line">
+            <span>Total factures</span>
+            <strong id="total">0,00 €</strong>
+          </div>
+          <div class="summary-line">
+            <span>Solo</span>
+            <strong id="soloTotal">0,00 €</strong>
+          </div>
+          <div class="summary-line">
+            <span>À partager</span>
+            <strong id="sharedTotal">0,00 €</strong>
+          </div>
+          <div class="summary-line">
+            <span>Ta part partagée</span>
+            <strong id="mySharedPart">0,00 €</strong>
+          </div>
+          <div class="summary-line">
+            <span>Ton total réel</span>
+            <strong id="myRealTotal">0,00 €</strong>
+          </div>
+          <div class="summary-line important">
+            <span>🟢 Reste après factures</span>
+            <strong id="remainingAfterBills">0,00 €</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Mes dépenses fixes</h2>
+
+        <div id="editExpensePanel" class="edit-panel">
+          <h3>Modifier la dépense</h3>
+          <input id="editExpenseId" type="hidden" />
+          <input id="editName" placeholder="Nom de la facture" />
+          <input id="editAmount" type="number" step="0.01" placeholder="Montant en €" />
+          <input id="editDueDay" type="number" min="1" max="31" placeholder="Jour de prélèvement" />
+          <input id="editDueDate" type="date" style="display:none" />
+
+          <select id="editExpenseScope">
+            <option value="shared">À partager avec le mate</option>
+            <option value="solo">Solo</option>
+          </select>
+
+          <select id="editExpenseFrequency" onchange="updateEditFrequencyFields()">
+            <option value="monthly">Mensuel</option>
+            <option value="annual">Annuel</option>
+          </select>
+
+          <select id="editCategory">
+            <option value="Logement">Logement</option>
+            <option value="Énergie">Énergie</option>
+            <option value="Eau">Eau</option>
+            <option value="Internet / téléphone">Internet / téléphone</option>
+            <option value="Assurance">Assurance</option>
+            <option value="Abonnement">Abonnement</option>
+            <option value="Autre">Autre</option>
+          </select>
+
+          <div class="edit-actions">
+            <button type="button" onclick="saveEditedExpense()">Enregistrer</button>
+            <button type="button" class="secondary" onclick="cancelEditExpense()">Annuler</button>
+          </div>
+        </div>
+
+        <div id="expenses"></div>
+      </div>
+    </main>
+  </main>
+
+  <script>
+    const supabaseUrl = "https://jjafxjyrnysujgwwtkte.supabase.co";
+    const supabaseKey = "sb_publishable_KZqc80abiojlxzIe5cnJew_-L2IPfvX";
+    const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+    let currentUser = null;
+
+    function showAuthMessage(text, type = "error") {
+      const message = document.getElementById("authMessage");
+      if (!message) return;
+
+      message.textContent = text;
+      message.className = `message ${type}`;
+    }
+
+    function normalizeCurrency(currency) {
+      if (typeof currency === "string" && /^[A-Z]{3}$/.test(currency)) {
+        return currency;
+      }
+
+      if (currency && typeof currency === "object" && typeof currency.code === "string" && /^[A-Z]{3}$/.test(currency.code)) {
+        return currency.code;
+      }
+
+      return "EUR";
+    }
+
+    async function init() {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      setAuthState(session?.user || null);
+
+      supabaseClient.auth.onAuthStateChange((_event, session) => {
+        setAuthState(session?.user || null);
+      });
+    }
+
+    function setAuthState(user) {
+      currentUser = user;
+
+      const authCard = document.getElementById("authCard");
+      const app = document.getElementById("app");
+      const headerActions = document.getElementById("headerActions");
+
+      if (!user) {
+        authCard.classList.remove("hidden");
+        app.classList.add("hidden");
+        headerActions.classList.add("hidden");
+        document.getElementById("settingsPanel").classList.remove("open");
+        showAuthMessage("Connecte-toi avec les identifiants de cette base Supabase.", "success");
+        return;
+      }
+
+      authCard.classList.add("hidden");
+      app.classList.remove("hidden");
+      headerActions.classList.remove("hidden");
+
+      loadExpenses();
+      loadSalary();
+      loadBankAccounts();
+    }
+
+    function toggleSettings() {
+      document.getElementById("settingsPanel").classList.toggle("open");
+    }
+
+    function updateFrequencyFields() {
+      const annual = document.getElementById("expenseFrequency").value === "annual";
+      document.getElementById("dueDay").style.display = annual ? "none" : "block";
+      document.getElementById("dueDate").style.display = annual ? "block" : "none";
+    }
+
+    function updateEditFrequencyFields() {
+      const annual = document.getElementById("editExpenseFrequency").value === "annual";
+      document.getElementById("editDueDay").style.display = annual ? "none" : "block";
+      document.getElementById("editDueDate").style.display = annual ? "block" : "none";
+    }
+
+    async function login() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        showAuthMessage("Ajoute ton email et ton mot de passe.");
+        return;
+      }
+
+      showAuthMessage("Connexion en cours...", "success");
+
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        showAuthMessage(`Connexion impossible : ${error.message}`);
+        return;
+      }
+
+      setAuthState(data.user);
+    }
+
+    async function signup() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+
+      if (!email || !password) {
+        showAuthMessage("Ajoute un email et un mot de passe.");
+        return;
+      }
+
+      if (password.length < 6) {
+        showAuthMessage("Le mot de passe doit faire au moins 6 caractères.");
+        return;
+      }
+
+      const { data, error } = await supabaseClient.auth.signUp({
+        email,
+        password
+      });
+
+      if (error) {
+        showAuthMessage(`Création impossible : ${error.message}`);
+        return;
+      }
+
+      if (data.session) {
+        setAuthState(data.user);
+        return;
+      }
+
+      showAuthMessage("Compte créé. Vérifie ton email si Supabase demande une confirmation.", "success");
+    }
+
+    async function logout() {
+      await supabaseClient.auth.signOut();
+      currentUser = null;
+
+      document.getElementById("expenses").innerHTML = "";
+      document.getElementById("bankAccounts").innerHTML = "";
+      document.getElementById("bankAccountSettings").innerHTML = "";
+      document.getElementById("total").textContent = "0,00 €";
+      document.getElementById("soloTotal").textContent = "0,00 €";
+      document.getElementById("sharedTotal").textContent = "0,00 €";
+      document.getElementById("mySharedPart").textContent = "0,00 €";
+      document.getElementById("myRealTotal").textContent = "0,00 €";
+      document.getElementById("salaryTotal").textContent = "0,00 €";
+      document.getElementById("salaryDateLabel").textContent = "Non renseignée";
+      document.getElementById("remainingAfterBills").textContent = "0,00 €";
+      document.getElementById("salaryAmount").value = "";
+      document.getElementById("salaryDay").value = "";
+
+      setAuthState(null);
+    }
+
+    async function connectBank() {
+      if (!currentUser) {
+        alert("Tu dois être connecté.");
+        return;
+      }
+
+      const redirectUrl = `${window.location.origin}${window.location.pathname}`;
+
+      const { data, error } = await supabaseClient.functions.invoke("powens-create-link", {
+        body: {
+          redirect_url: redirectUrl
+        }
+      });
+
+      if (error) {
+        alert(`Impossible de créer le lien Powens : ${error.message}`);
+        return;
+      }
+
+      if (!data?.url) {
+        alert(`La fonction Powens n'a pas renvoyé d'URL : ${JSON.stringify(data)}`);
+        return;
+      }
+
+      window.location.href = data.url;
+    }
+
+    function accountKindEmoji(kind) {
+      switch (kind) {
+        case "savings":
+          return "🏦";
+        case "shared":
+          return "🤝";
+        default:
+          return "💳";
+      }
+    }
+
+    async function saveAccountKind(powensAccountId, accountKind) {
+      if (!currentUser) return;
+
+      const allowedKinds = ["current", "savings", "shared"];
+      if (!allowedKinds.includes(accountKind)) {
+        alert("Type de compte invalide.");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("bank_account_settings")
+        .upsert({
+          user_id: currentUser.id,
+          powens_account_id: String(powensAccountId),
+          account_kind: accountKind,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      loadBankAccounts();
+    }
+
+    function renderBankAccountSettings(accounts, typeByAccountId) {
+      const settingsContainer = document.getElementById("bankAccountSettings");
+      if (!settingsContainer) return;
+
+      if (!accounts.length) {
+        settingsContainer.innerHTML = "";
+        return;
+      }
+
+      settingsContainer.innerHTML = `
+        <div class="account-settings-list">
+          ${accounts.map(account => {
+            const accountId = String(account.id);
+            const currentKind = typeByAccountId[accountId] || "current";
+
+            return `
+              <div class="account-settings-item">
+                <strong>${accountKindEmoji(currentKind)} ${account.name || "Compte bancaire"}</strong><br>
+                <small>${account.bank_name || account.type || "Banque"}</small>
+                <select class="account-type-select" onchange="saveAccountKind('${accountId}', this.value)">
+                  <option value="current" ${currentKind === "current" ? "selected" : ""}>Compte courant</option>
+                  <option value="savings" ${currentKind === "savings" ? "selected" : ""}>Épargne</option>
+                  <option value="shared" ${currentKind === "shared" ? "selected" : ""}>Commun avec le mate</option>
+                </select>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      `;
+    }
+    async function loadBankAccounts() {
+      if (!currentUser) return;
+
+      const container = document.getElementById("bankAccounts");
+      container.innerHTML = `<div class="message">Chargement des soldes...</div>`;
+
+      try {
+        const { data, error } = await supabaseClient.functions.invoke("powens-accounts", {
+          body: {
+            force_refresh: true,
+            requested_at: new Date().toISOString()
+          }
+        });
+
+        if (error) {
+          container.innerHTML = `<div class="message error">Impossible de charger les comptes : ${error.message}</div>`;
+          return;
+        }
+
+        if (!data) {
+          container.innerHTML = `<div class="message error">La fonction powens-accounts n'a renvoyé aucune donnée.</div>`;
+          return;
+        }
+
+        if (data.error) {
+          container.innerHTML = `
+            <div class="message error">
+              ${data.error}<br>
+              <small>${data.details ? JSON.stringify(data.details) : ""}</small>
+            </div>
+          `;
+          return;
+        }
+
+        const accounts = Array.isArray(data.accounts) ? data.accounts : [];
+
+        if (!accounts.length) {
+          container.innerHTML = `
+            <div class="message">
+              Aucun compte bancaire trouvé.<br>
+              <small>Réponse : ${JSON.stringify(data)}</small>
+            </div>
+          `;
+          return;
+        }
+
+        const accountIds = accounts.map(account => String(account.id)).filter(Boolean);
+        const { data: savedTypes, error: savedTypesError } = await supabaseClient
+          .from("bank_account_settings")
+          .select("powens_account_id, account_kind")
+          .eq("user_id", currentUser.id)
+          .in("powens_account_id", accountIds.length ? accountIds : ["__none__"]);
+
+        if (savedTypesError) {
+          container.innerHTML = `<div class="message error">Impossible de charger les réglages des comptes : ${savedTypesError.message}</div>`;
+          return;
+        }
+
+        const typeByAccountId = {};
+        (savedTypes || []).forEach(row => {
+          typeByAccountId[row.powens_account_id] = row.account_kind;
+        });
+
+        container.innerHTML = "";
+
+        accounts.forEach(account => {
+          const div = document.createElement("div");
+          div.className = "bank-account";
+
+          const accountId = String(account.id);
+          const balance = Number(account.balance ?? 0).toLocaleString("fr-FR", {
+            style: "currency",
+            currency: normalizeCurrency(account.currency)
+          });
+
+          const currentKind = typeByAccountId[accountId] || "current";
+
+          div.innerHTML = `
+            <div>
+              <strong>${accountKindEmoji(currentKind)} ${account.name || "Compte bancaire"}</strong><br>
+              <small>${account.bank_name || account.type || "Banque"}${account.last_update ? " · MAJ " + account.last_update : ""}</small>
+            </div>
+            <div class="balance">${balance}</div>
+          `;
+
+          container.appendChild(div);
+        });
+        renderBankAccountSettings(accounts, typeByAccountId);
+      } catch (err) {
+        container.innerHTML = `<div class="message error">Erreur JavaScript : ${err.message}</div>`;
+      }
+    }
+
+    function showSalaryMessage(text, type = "success") {
+      const message = document.getElementById("salaryMessage");
+      if (!message) return;
+      message.textContent = text;
+      message.className = `message ${type}`;
+    }
+
+    function formatMoney(value) {
+      return Number(value || 0).toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+    }
+
+    function parseMoneyText(text) {
+      return Number(String(text || "0").replace(/[^0-9,-]/g, "").replace(",", ".")) || 0;
+    }
+
+    async function loadSalary() {
+      if (!currentUser) return;
+
+      const { data, error } = await supabaseClient
+        .from("budget_settings")
+        .select("salary_amount, salary_day")
+        .eq("user_id", currentUser.id)
+        .maybeSingle();
+
+      if (error) {
+        showSalaryMessage(error.message, "error");
+        return;
+      }
+
+      const salaryAmount = Number(data?.salary_amount || 0);
+      const salaryDay = data?.salary_day || null;
+
+      document.getElementById("salaryAmount").value = salaryAmount || "";
+      document.getElementById("salaryDay").value = salaryDay || "";
+      document.getElementById("salaryTotal").textContent = formatMoney(salaryAmount);
+      document.getElementById("salaryDateLabel").textContent = salaryDay ? `Le ${salaryDay}` : "Non renseignée";
+
+      updateRemainingAfterBills();
+    }
+
+    async function saveSalary() {
+      if (!currentUser) {
+        alert("Tu dois être connecté.");
+        return;
+      }
+
+      const salaryAmount = parseFloat(document.getElementById("salaryAmount").value);
+      const salaryDay = parseInt(document.getElementById("salaryDay").value, 10);
+
+      if (isNaN(salaryAmount) || salaryAmount < 0) {
+        showSalaryMessage("Salaire invalide.", "error");
+        return;
+      }
+
+      if (isNaN(salaryDay) || salaryDay < 1 || salaryDay > 31) {
+        showSalaryMessage("Jour de versement invalide.", "error");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("budget_settings")
+        .upsert({
+          user_id: currentUser.id,
+          salary_amount: salaryAmount,
+          salary_day: salaryDay,
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        showSalaryMessage(error.message, "error");
+        return;
+      }
+
+      showSalaryMessage("Salaire enregistré.", "success");
+      loadSalary();
+    }
+
+    function updateRemainingAfterBills() {
+      const salary = parseMoneyText(document.getElementById("salaryTotal")?.textContent);
+      const realTotal = parseMoneyText(document.getElementById("myRealTotal")?.textContent);
+      document.getElementById("remainingAfterBills").textContent = formatMoney(salary - realTotal);
+    }
+
+    async function addExpense() {
+      const name = document.getElementById("name").value.trim();
+      const amount = parseFloat(document.getElementById("amount").value);
+      const dueDay = parseInt(document.getElementById("dueDay").value);
+      const category = document.getElementById("category").value;
+      const scope = document.getElementById("expenseScope").value;
+      const frequency = document.getElementById("expenseFrequency").value;
+      const dueDate = document.getElementById("dueDate").value || null;
+
+      if (!currentUser) {
+        alert("Tu dois être connecté.");
+        return;
+      }
+
+      if (!name || isNaN(amount)) {
+        alert("Ajoute au moins un nom et un montant.");
+        return;
+      }
+
+      const { error } = await supabaseClient.from("fixed_expenses").insert({
+        user_id: currentUser.id,
+        name,
+        amount,
+        due_day: isNaN(dueDay) ? null : dueDay,
+        due_date: dueDate,
+        category,
+        scope,
+        frequency
+      });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      document.getElementById("name").value = "";
+      document.getElementById("amount").value = "";
+      document.getElementById("dueDay").value = "";
+      document.getElementById("dueDate").value = "";
+      document.getElementById("expenseScope").value = "shared";
+      document.getElementById("expenseFrequency").value = "monthly";
+
+      loadExpenses();
+    }
+
+    function categoryEmoji(category) {
+      switch (category) {
+        case "Logement":
+          return "🏠";
+        case "Énergie":
+          return "⚡";
+        case "Eau":
+          return "💧";
+        case "Internet / téléphone":
+          return "📶";
+        case "Assurance":
+          return "🛡️";
+        case "Abonnement":
+          return "📺";
+        default:
+          return "🧾";
+      }
+    }
+
+    async function loadExpenses() {
+      if (!currentUser) return;
+
+      const { data, error } = await supabaseClient
+        .from("fixed_expenses")
+        .select("*")
+        .eq("user_id", currentUser.id)
+        .order("due_day", { ascending: true });
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      const container = document.getElementById("expenses");
+      container.innerHTML = "";
+
+      let total = 0;
+      let soloTotal = 0;
+      let sharedTotal = 0;
+
+      data.forEach(expense => {
+        const rawAmount = Number(expense.amount);
+        const frequency = expense.frequency || "monthly";
+        const amount = frequency === "annual" ? rawAmount / 12 : rawAmount;
+        const scope = expense.scope || "solo";
+
+        total += amount;
+
+        if (scope === "shared") {
+          sharedTotal += amount;
+        } else {
+          soloTotal += amount;
+        }
+
+        const div = document.createElement("div");
+        div.className = "expense";
+
+        div.innerHTML = `
+          <div>
+            <strong>${categoryEmoji(expense.category)} ${expense.name}</strong><br>
+            <small>${expense.category || "Autre"}${expense.due_day ? " · le " + expense.due_day : ""}${expense.due_date ? " · " + expense.due_date : ""} · ${(expense.frequency || "monthly") === "annual" ? "Annuel" : "Mensuel"}</small><br>
+            <span class="pill">${(expense.scope || "solo") === "shared" ? "À partager" : "Solo"}</span>
+          </div>
+          <div>
+            <span class="amount">${Number(expense.amount).toFixed(2)} €</span><br>
+            <small>${(expense.frequency || "monthly") === "annual" ? (Number(expense.amount) / 12).toFixed(2) + " €/mois" : "mensuel"}</small><br>
+            <button class="edit" onclick="editExpense('${expense.id}')">Modifier</button>
+            <button class="delete" onclick="deleteExpense('${expense.id}')">×</button>
+          </div>
+        `;
+        container.appendChild(div);
+      });
+
+      const mySharedPart = sharedTotal / 2;
+      const myRealTotal = soloTotal + mySharedPart;
+
+      document.getElementById("total").textContent =
+        total.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      document.getElementById("soloTotal").textContent =
+        soloTotal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      document.getElementById("sharedTotal").textContent =
+        sharedTotal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      document.getElementById("mySharedPart").textContent =
+        mySharedPart.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      document.getElementById("myRealTotal").textContent =
+        myRealTotal.toLocaleString("fr-FR", { style: "currency", currency: "EUR" });
+      updateRemainingAfterBills();
+    }
+
+    async function editExpense(id) {
+      const { data: expense, error } = await supabaseClient
+        .from("fixed_expenses")
+        .select("*")
+        .eq("id", id)
+        .eq("user_id", currentUser.id)
+        .single();
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      document.getElementById("editExpenseId").value = expense.id;
+      document.getElementById("editName").value = expense.name || "";
+      document.getElementById("editAmount").value = expense.amount ?? "";
+      document.getElementById("editDueDay").value = expense.due_day ?? "";
+      document.getElementById("editExpenseScope").value = expense.scope || "solo";
+      document.getElementById("editExpenseFrequency").value = expense.frequency || "monthly";
+      document.getElementById("editCategory").value = expense.category || "Autre";
+      document.getElementById("editDueDate").value = expense.due_date || "";
+      updateEditFrequencyFields();
+
+      document.getElementById("editExpensePanel").classList.add("open");
+      document.getElementById("editExpensePanel").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    function cancelEditExpense() {
+      document.getElementById("editExpensePanel").classList.remove("open");
+      document.getElementById("editExpenseId").value = "";
+    }
+
+    async function saveEditedExpense() {
+      const id = document.getElementById("editExpenseId").value;
+      const name = document.getElementById("editName").value.trim();
+      const amount = parseFloat(document.getElementById("editAmount").value);
+      const dueDayText = document.getElementById("editDueDay").value.trim();
+      const dueDay = dueDayText === "" ? null : parseInt(dueDayText, 10);
+      const scope = document.getElementById("editExpenseScope").value;
+      const frequency = document.getElementById("editExpenseFrequency").value;
+      const category = document.getElementById("editCategory").value;
+      const dueDate = document.getElementById("editDueDate").value || null;
+
+      if (!id) {
+        alert("Aucune dépense sélectionnée.");
+        return;
+      }
+
+      if (!name || isNaN(amount)) {
+        alert("Ajoute au moins un nom et un montant valide.");
+        return;
+      }
+
+      if (dueDay !== null && (isNaN(dueDay) || dueDay < 1 || dueDay > 31)) {
+        alert("Jour de prélèvement invalide.");
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("fixed_expenses")
+        .update({
+          name,
+          amount,
+          due_day: dueDay,
+          due_date: dueDate,
+          scope,
+          frequency,
+          category
+        })
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+      if (error) {
+        alert(error.message);
+        return;
+      }
+
+      cancelEditExpense();
+      loadExpenses();
+    }
+
+    async function deleteExpense(id) {
+      await supabaseClient
+        .from("fixed_expenses")
+        .delete()
+        .eq("id", id)
+        .eq("user_id", currentUser.id);
+
+      loadExpenses();
+      cancelEditExpense();
+    }
+
+    init();
+    // Ensure frequency fields are properly shown/hidden on load
+    updateFrequencyFields();
+    updateEditFrequencyFields();
+
+    window.addEventListener("pageshow", () => {
+      if (currentUser) {
+        loadBankAccounts();
+      }
+    });
+
+    document.addEventListener("visibilitychange", () => {
+      if (!document.hidden && currentUser) {
+        loadBankAccounts();
+      }
+    });
+  </script>
+</body>
+</html>
