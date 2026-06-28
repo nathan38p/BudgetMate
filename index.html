@@ -664,6 +664,17 @@
       }
     }
 
+    function accountKindLabel(kind) {
+      switch (kind) {
+        case "savings":
+          return "Épargne";
+        case "shared":
+          return "Commun";
+        default:
+          return "Courant";
+      }
+    }
+
     async function saveAccountKind(powensAccountId, accountKind) {
       if (!currentUser) return;
 
@@ -710,7 +721,7 @@
             return `
               <div class="account-settings-item">
                 <strong>${accountKindEmoji(currentKind)} ${account.name || "Compte bancaire"}</strong><br>
-                <small>${account.bank_name || account.type || "Banque"}</small>
+                <small>${accountKindLabel(currentKind)} · ${account.bank_name || account.type || "Banque"}${account.last_update ? " · MAJ " + account.last_update : ""}</small>
                 <select class="account-type-select" onchange="saveAccountKind('${accountId}', this.value)">
                   <option value="current" ${currentKind === "current" ? "selected" : ""}>Compte courant</option>
                   <option value="savings" ${currentKind === "savings" ? "selected" : ""}>Épargne</option>
@@ -798,12 +809,10 @@
           });
 
           const currentKind = typeByAccountId[accountId] || "current";
-          const ownerLabel = account.owner_user_id && account.owner_user_id !== currentUser.id ? " · Mate" : "";
 
           div.innerHTML = `
             <div>
-              <strong>${accountKindEmoji(currentKind)} ${account.name || "Compte bancaire"}</strong><br>
-              <small>${account.bank_name || account.type || "Banque"}${ownerLabel}${account.last_update ? " · MAJ " + account.last_update : ""}</small>
+              <strong>${accountKindEmoji(currentKind)} ${accountKindLabel(currentKind)}</strong>
             </div>
             <div class="balance">${balance}</div>
           `;
