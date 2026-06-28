@@ -474,6 +474,7 @@
     const supabaseClient = window.supabase.createClient(supabaseUrl, supabaseKey);
 
     let currentUser = null;
+    let mateUserIds = [];
 
     function showAuthMessage(text, type = "error") {
       const message = document.getElementById("authMessage");
@@ -524,9 +525,11 @@
       app.classList.remove("hidden");
       headerActions.classList.remove("hidden");
 
-      loadExpenses();
-      loadSalary();
-      loadBankAccounts();
+      loadMateUserIds().then(() => {
+        loadExpenses();
+        loadSalary();
+        loadBankAccounts();
+      });
     }
 
     function toggleSettings() {
@@ -604,6 +607,7 @@
     async function logout() {
       await supabaseClient.auth.signOut();
       currentUser = null;
+      mateUserIds = [];
 
       document.getElementById("expenses").innerHTML = "";
       document.getElementById("bankAccounts").innerHTML = "";
@@ -700,7 +704,9 @@
           ${accounts.map(account => {
             const accountId = String(account.id);
             const currentKind = typeByAccountId[accountId] || "current";
-
+            if (account.owner_user_id && account.owner_user_id !== currentUser.id) {
+              return "";
+            }
             return `
               <div class="account-settings-item">
                 <strong>${accountKindEmoji(currentKind)} ${account.name || "Compte bancaire"}</strong><br>
@@ -792,11 +798,12 @@
           });
 
           const currentKind = typeByAccountId[accountId] || "current";
+          const ownerLabel = account.owner_user_id && account.owner_user_id !== currentUser.id ? " · Mate" : "";
 
           div.innerHTML = `
             <div>
               <strong>${accountKindEmoji(currentKind)} ${account.name || "Compte bancaire"}</strong><br>
-              <small>${account.bank_name || account.type || "Banque"}${account.last_update ? " · MAJ " + account.last_update : ""}</small>
+              <small>${account.bank_name || account.type || "Banque"}${ownerLabel}${account.last_update ? " · MAJ " + account.last_update : ""}</small>
             </div>
             <div class="balance">${balance}</div>
           `;
@@ -807,6 +814,25 @@
       } catch (err) {
         container.innerHTML = `<div class="message error">Erreur JavaScript : ${err.message}</div>`;
       }
+    }
+    async function loadMateUserIds() {
+      if (!currentUser) {
+        mateUserIds = [];
+        return [];
+      }
+
+      const { data, error } = await supabaseClient
+        .from("mates")
+        .select("owner_id, mate_id")
+        .or(`owner_id.eq.${currentUser.id},mate_id.eq.${currentUser.id}`);
+
+      if (error) {
+        mateUserIds = [];
+        return [];
+      }
+
+      mateUserIds = [...new Set((data || []).map(row => row.owner_id === currentUser.id ? row.mate_id : row.owner_id))];
+      return mateUserIds;
     }
 
     function showSalaryMessage(text, type = "success") {
@@ -959,16 +985,27 @@
     async function loadExpenses() {
       if (!currentUser) return;
 
+      if (!mateUserIds.length) {
+        await loadMateUserIds();
+      }
+
+      const expenseUserIds = [currentUser.id, ...mateUserIds];
+
       const { data, error } = await supabaseClient
         .from("fixed_expenses")
         .select("*")
-        .eq("user_id", currentUser.id)
+        .in("user_id", expenseUserIds)
         .order("due_day", { ascending: true });
 
       if (error) {
         alert(error.message);
         return;
       }
+
+      const visibleExpenses = (data || []).filter(expense => {
+        if (expense.user_id === currentUser.id) return true;
+        return expense.scope === "shared";
+      });
 
       const container = document.getElementById("expenses");
       container.innerHTML = "";
@@ -977,7 +1014,7 @@
       let soloTotal = 0;
       let sharedTotal = 0;
 
-      data.forEach(expense => {
+      visibleExpenses.forEach(expense => {
         const rawAmount = Number(expense.amount);
         const frequency = expense.frequency || "monthly";
         const amount = frequency === "annual" ? rawAmount / 12 : rawAmount;
@@ -998,13 +1035,14 @@
           <div>
             <strong>${categoryEmoji(expense.category)} ${expense.name}</strong><br>
             <small>${expense.category || "Autre"}${expense.due_day ? " · le " + expense.due_day : ""}${expense.due_date ? " · " + expense.due_date : ""} · ${(expense.frequency || "monthly") === "annual" ? "Annuel" : "Mensuel"}</small><br>
+            ${expense.user_id !== currentUser.id ? `<span class="pill">Mate</span>` : ""}
             <span class="pill">${(expense.scope || "solo") === "shared" ? "À partager" : "Solo"}</span>
           </div>
           <div>
             <span class="amount">${Number(expense.amount).toFixed(2)} €</span><br>
             <small>${(expense.frequency || "monthly") === "annual" ? (Number(expense.amount) / 12).toFixed(2) + " €/mois" : "mensuel"}</small><br>
-            <button class="edit" onclick="editExpense('${expense.id}')">Modifier</button>
-            <button class="delete" onclick="deleteExpense('${expense.id}')">×</button>
+            ${expense.user_id === currentUser.id ? `<button class="edit" onclick="editExpense('${expense.id}')">Modifier</button>` : ""}
+            ${expense.user_id === currentUser.id ? `<button class="delete" onclick="deleteExpense('${expense.id}')">×</button>` : ""}
           </div>
         `;
         container.appendChild(div);
