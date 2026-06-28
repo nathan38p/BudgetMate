@@ -517,6 +517,7 @@
         app.classList.add("hidden");
         headerActions.classList.add("hidden");
         document.getElementById("settingsPanel").classList.remove("open");
+        document.getElementById("bankAccounts").classList.remove("hidden");
         showAuthMessage("Connecte-toi avec les identifiants de cette base Supabase.", "success");
         return;
       }
@@ -533,7 +534,12 @@
     }
 
     function toggleSettings() {
-      document.getElementById("settingsPanel").classList.toggle("open");
+      const settingsPanel = document.getElementById("settingsPanel");
+      const bankAccounts = document.getElementById("bankAccounts");
+      const isOpening = !settingsPanel.classList.contains("open");
+
+      settingsPanel.classList.toggle("open", isOpening);
+      bankAccounts.classList.toggle("hidden", isOpening);
     }
 
     function updateFrequencyFields() {
@@ -611,6 +617,7 @@
 
       document.getElementById("expenses").innerHTML = "";
       document.getElementById("bankAccounts").innerHTML = "";
+      document.getElementById("bankAccounts").classList.remove("hidden");
       document.getElementById("bankAccountSettings").innerHTML = "";
       document.getElementById("total").textContent = "0,00 €";
       document.getElementById("soloTotal").textContent = "0,00 €";
@@ -737,7 +744,10 @@
       if (!currentUser) return;
 
       const container = document.getElementById("bankAccounts");
+      const settingsPanel = document.getElementById("settingsPanel");
+      const settingsAreOpen = settingsPanel.classList.contains("open");
       container.innerHTML = `<div class="message">Chargement des soldes...</div>`;
+      container.classList.toggle("hidden", settingsAreOpen);
 
       try {
         const { data, error } = await supabaseClient.functions.invoke("powens-accounts", {

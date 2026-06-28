@@ -79,10 +79,110 @@ async function fetchPowensRawAccounts(domain: string, accessToken: string) {
           : [];
 }
 
+function extractConnectionIdsFromAccounts(rawAccounts: unknown[]) {
+  return [...new Set(rawAccounts
+    .map((account) => {
+      const row = account as Record<string, unknown>;
+      return row.id_connection || row.connection_id || row.id_parent || null;
+    })
+    .filter(Boolean)
+    .map(String))];
+}
+
+async function fetchPowensConnectionIds(domain: string, accessToken: string) {
+  const response = await fetch(`https://${domain}.biapi.pro/2.0/users/me/connections`, {
+    method: "GET",
+    headers: {
+      "Accept": "application/json",
+      "Authorization": `Bearer ${accessToken}`,
+    },
+  });
+
+  const body = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const rows = Array.isArray(body)
+    ? body
+    : Array.isArray(body.connections)
+      ? body.connections
+      : Array.isArray(body.results)
+        ? body.results
+        : Array.isArray(body.data)
+          ? body.data
+          : [];
+
+  return [...new Set(rows
+    .map((connection: Record<string, unknown>) => connection.id)
+    .filter(Boolean)
+    .map(String))];
+}
+
+async function sleep(ms: number) {
+  await new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function tryRefreshPowensConnections(domain: string, accessToken: string, rawAccounts: unknown[]) {
+  const connectionIdsFromConnections = await fetchPowensConnectionIds(domain, accessToken);
+  const connectionIdsFromAccounts = extractConnectionIdsFromAccounts(rawAccounts);
+  const connectionIds = [...new Set([...connectionIdsFromConnections, ...connectionIdsFromAccounts])];
+
+  const attempts = [];
+
+  for (const connectionId of connectionIds) {
+    const endpoints = [
+      `https://${domain}.biapi.pro/2.0/users/me/connections/${connectionId}/sync`,
+      `https://${domain}.biapi.pro/2.0/users/me/connections/${connectionId}/refresh`,
+      `https://${domain}.biapi.pro/2.0/users/me/connections/${connectionId}/update`,
+    ];
+
+    for (const url of endpoints) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({}),
+      }).catch((error) => ({
+        ok: false,
+        status: 0,
+        json: async () => ({ message: String(error) }),
+      }));
+
+      const body = await response.json().catch(() => ({}));
+
+      attempts.push({
+        connection_id: connectionId,
+        endpoint: url.split("/2.0/")[1],
+        status: response.status,
+        ok: response.ok,
+        body,
+      });
+
+      if (response.ok) {
+        break;
+      }
+    }
+  }
+
+  if (attempts.some((attempt) => attempt.ok)) {
+    await sleep(2500);
+  }
+
+  return attempts;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
+
+  const requestBody = await req.json().catch(() => ({}));
+  const forceRefresh = Boolean(requestBody.force_refresh);
 
   const supabaseUserClient = createClient(
     Deno.env.get("SUPABASE_URL")!,
@@ -159,11 +259,19 @@ Deno.serve(async (req) => {
   });
 
   const allAccounts = [];
+  const refreshAttempts = [];
   let rawCount = 0;
 
   for (const powensRow of powensRows) {
     try {
-      const rawAccounts = await fetchPowensRawAccounts(domain, powensRow.access_token);
+      let rawAccounts = await fetchPowensRawAccounts(domain, powensRow.access_token);
+
+      if (forceRefresh && powensRow.user_id === user.id) {
+        const attempts = await tryRefreshPowensConnections(domain, powensRow.access_token, rawAccounts);
+        refreshAttempts.push(...attempts);
+        rawAccounts = await fetchPowensRawAccounts(domain, powensRow.access_token);
+      }
+
       rawCount += rawAccounts.length;
 
       const normalizedAccounts = normalizeAccounts(
@@ -192,5 +300,10 @@ Deno.serve(async (req) => {
     }
   }
 
-  return jsonResponse({ accounts: allAccounts, raw_count: rawCount });
+  return jsonResponse({
+    accounts: allAccounts,
+    raw_count: rawCount,
+    refresh_requested: forceRefresh,
+    refresh_attempts: refreshAttempts,
+  });
 });
